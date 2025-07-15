@@ -54,11 +54,15 @@
                             <div class="row mb-3">
                                 <div class="col-md-12">
                                     <label for="description" class="form-label">الوصف: <span class="text-danger">*</span></label>
-                                    <input type="text" id="description" name="description" class="form-control" 
-                                           ng-model="view.entry.description" placeholder="أدخل وصف القيد" required 
-                                           ng-class="{'is-invalid': journalEntryForm.description.$invalid && journalEntryForm.description.$touched}" />
+                                    <textarea id="description" name="description" class="form-control" 
+                                              ng-model="view.entry.description" placeholder="أدخل وصف القيد" 
+                                              required minlength="10" maxlength="1500" rows="3"
+                                              ng-class="{'is-invalid': journalEntryForm.description.$invalid && journalEntryForm.description.$touched}"></textarea>
+                                    <div class="form-text">{{ view.entry.description.length || 0 }}/1500 حرف</div>
                                     <div class="invalid-feedback" ng-show="journalEntryForm.description.$invalid && journalEntryForm.description.$touched">
                                         <div ng-show="journalEntryForm.description.$error.required">الوصف مطلوب</div>
+                                        <div ng-show="journalEntryForm.description.$error.minlength">الوصف يجب أن يكون على الأقل 10 حروف</div>
+                                        <div ng-show="journalEntryForm.description.$error.maxlength">الوصف لا يجب أن يتجاوز 1500 حرف</div>
                                     </div>
                                 </div>
                             </div>
