@@ -4,6 +4,62 @@ app.controller('JournalController', function ($http, $scope, JournalEntryService
     view.entry = JournalEntry.createNew();
     view.accounts = [];
 
+    var STORAGE_KEY = 'journalEntryData';
+
+    view.saveToLocalStorage = function() {
+        try {
+            var dataToSave = {
+                entry: {
+                    entryNumber: view.entry.entryNumber,
+                    entryDate: view.entry.entryDate,
+                    description: view.entry.description,
+                    details: view.entry.details
+                },
+                timestamp: new Date().toISOString()
+            };
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(dataToSave));
+        } catch (error) {
+            console.error('Error saving to local storage:', error);
+        }
+    };
+
+    view.loadFromLocalStorage = function() {
+        try {
+            var savedData = localStorage.getItem(STORAGE_KEY);
+            if (savedData) {
+                var parsedData = JSON.parse(savedData);
+                if (parsedData.entry) {
+                    view.entry = parsedData.entry;
+                    if (!view.entry.details || view.entry.details.length === 0) {
+                        view.entry.details = [JournalEntryDetail.createNew()];
+                    }
+                    return true;
+                }
+            }
+        } catch (error) {
+            console.error('Error loading from local storage:', error);
+        }
+        return false;
+    };
+
+    view.clearLocalStorage = function() {
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+        } catch (error) {
+            console.error('Error clearing local storage:', error);
+        }
+    };
+
+    view.autoSave = function() {
+        view.saveToLocalStorage();
+    };
+
+    view.initializeData = function() {
+        if (!view.loadFromLocalStorage()) {
+            view.entry = JournalEntry.createNew();
+        }
+    };
+
     view.loadAccounts = function () {
         $http.get(`${environment.apiBaseUrl}/Account/GetSelectableAccounts`).then(function (response) {
             view.accounts = AccountService.mapArrayToModels(response.data.data);
@@ -14,6 +70,7 @@ app.controller('JournalController', function ($http, $scope, JournalEntryService
     view.addRow = function () {
         if (view.entry.details.length < 5) {
             JournalEntryService.addDetail(view.entry);
+            view.autoSave();
         } else {
             alert('لا يمكن إضافة أكثر من 5 صفوف');
         }
@@ -35,6 +92,7 @@ app.controller('JournalController', function ($http, $scope, JournalEntryService
             modal.show();
         } else {
             JournalEntryService.removeDetail(view.entry, index);
+            view.autoSave();
         }
     };
 
@@ -44,6 +102,7 @@ app.controller('JournalController', function ($http, $scope, JournalEntryService
             detail.accountNumber = account.Number;
             detail.accountName = account.NameAR;
             detail.selectedAccountByName = account.NameAR;
+            view.autoSave();
         }
     };
 
@@ -53,6 +112,7 @@ app.controller('JournalController', function ($http, $scope, JournalEntryService
             detail.accountNumber = account.Number;
             detail.accountName = account.NameAR;
             detail.selectedAccount = account.Number;
+            view.autoSave();
         }
     };
 
@@ -82,6 +142,7 @@ app.controller('JournalController', function ($http, $scope, JournalEntryService
                 detail.selectedAccountByName = '';
             }
         }
+        view.autoSave();
     };
 
     view.onAccountNameChange = function(detail) {
@@ -110,6 +171,7 @@ app.controller('JournalController', function ($http, $scope, JournalEntryService
                 detail.selectedAccount = '';
             }
         }
+        view.autoSave();
     };
 
     view.onAccountNumberBlur = function(detail) {
@@ -124,19 +186,23 @@ app.controller('JournalController', function ($http, $scope, JournalEntryService
         if (view.deleteIndex !== null && view.entry.details.length > 1) {
             JournalEntryService.removeDetail(view.entry, view.deleteIndex);
             view.deleteIndex = null;
+            view.autoSave();
         }
     };
 
     view.removeRow = function (index) {
         JournalEntryService.removeDetail(view.entry, index);
+        view.autoSave();
     };
 
     view.onDebitChange = function(detail) {
         JournalEntryService.onDebitChange(detail);
+        view.autoSave();
     };
 
     view.onCreditChange = function(detail) {
         JournalEntryService.onCreditChange(detail);
+        view.autoSave();
     };
 
     view.getTotalDebit = function() {
@@ -235,9 +301,19 @@ app.controller('JournalController', function ($http, $scope, JournalEntryService
         $http.post(`${environment.apiBaseUrl}/JournalEntry/AddJournalEntry`, entryData).then(function (response) {
             alert(response.data.message || 'تم حفظ القيد بنجاح');
             view.entry = JournalEntry.createNew();
+            view.clearLocalStorage(); 
         }, function (error) {
             alert(error.data.message || "حدث خطأ أثناء الحفظ");
         });
+    };
+
+    view.hasAutoSavedData = function() {
+        try {
+            var savedData = localStorage.getItem(STORAGE_KEY);
+            return savedData !== null;
+        } catch (error) {
+            return false;
+        }
     };
 
     view.getCurrentDate = function() {
@@ -245,5 +321,20 @@ app.controller('JournalController', function ($http, $scope, JournalEntryService
         return today.toISOString().split('T')[0];
     };
 
+    // i initialize data and load accounts here and this is responsible for getting data from local storage too...
+    view.initializeData();
     view.loadAccounts();
+
+    // watching changs..
+    $scope.$watch('view.entry.entryNumber', function() {
+        view.autoSave();
+    });
+    
+    $scope.$watch('view.entry.entryDate', function() {
+        view.autoSave();
+    });
+    
+    $scope.$watch('view.entry.description', function() {
+        view.autoSave();
+    });
 });
